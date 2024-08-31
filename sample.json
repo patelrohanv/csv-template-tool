@@ -1,0 +1,11 @@
+{
+  "receipt_number": "R-{{.id}}",
+  "customer_name": "{{.first_name}} {{.last_name}}",
+  "customer_email": "{{.email}}",
+  "purchase_details": {
+    "date": "{{.purchase_date}}",
+    "item": "{{.item}}",
+    "price": "${{.price}}"
+  },
+  "thank_you_message": "Thank you for your purchase, {{.first_name}}!"
+}

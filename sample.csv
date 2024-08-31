@@ -1,0 +1,6 @@
+id,first_name,last_name,email,purchase_date,item,price
+1,John,Doe,john.doe@example.com,2023-08-15,Laptop,999.99
+2,Jane,Smith,jane.smith@example.com,2023-09-02,Smartphone,599.99
+3,Bob,Johnson,bob.johnson@example.com,2023-07-30,Headphones,149.99
+4,Alice,Williams,alice.williams@example.com,2023-08-22,Tablet,399.99
+5,Charlie,Brown,charlie.brown@example.com,2023-09-10,Smartwatch,249.99
