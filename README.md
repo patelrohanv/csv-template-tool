@@ -24,7 +24,7 @@ Flags:
 ## Running with Sample Files
 
 ```bash
-./csv-template-tool -csv=sample.csv -template=sample.json -output=./output
+./csv-template-tool -csv=sample.csv -template=sample.json -output=output
 ```
 
 This command reads from `sample.csv`, applies the data to `sample.json`, and generates output files in the `./output` directory.

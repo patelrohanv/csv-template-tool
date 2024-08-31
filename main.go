@@ -13,47 +13,35 @@ import (
 	"text/template"
 )
 
+type Config struct {
+	CSVFile      string
+	TemplateFile string
+	OutputDir    string
+}
+
 type RowData map[string]string
 
 func main() {
-	// Define command-line flags
+	config := parseFlags()
+	validateInput(config)
+	records, headers := readCSV(config.CSVFile)
+	templateContent := readTemplateFile(config.TemplateFile)
+	createOutputDir(config.OutputDir)
+	processRows(records, headers, templateContent, config)
+}
+
+func parseFlags() Config {
 	csvFile := flag.String("csv", "", "Location of the CSV file")
 	templateFile := flag.String("template", "", "Location of the template file")
 	outputDir := flag.String("output", "", "Location of the output directory")
 	flag.Parse()
+	return Config{*csvFile, *templateFile, *outputDir}
+}
 
-	// Validate input
-	if *csvFile == "" || *templateFile == "" || *outputDir == "" {
+func validateInput(config Config) {
+	if config.CSVFile == "" || config.TemplateFile == "" || config.OutputDir == "" {
 		log.Fatal("All arguments (csv, template, output) are required")
 	}
-
-	// Read CSV file
-	records, headers := readCSV(*csvFile)
-
-	// Read template file
-	templateContent, err := ioutil.ReadFile(*templateFile)
-	if err != nil {
-		log.Fatalf("Error reading template file: %v", err)
-	}
-
-	// Create output directory if it doesn't exist
-	err = os.MkdirAll(*outputDir, os.ModePerm)
-	if err != nil {
-		log.Fatalf("Error creating output directory: %v", err)
-	}
-
-	// Process rows concurrently
-	var wg sync.WaitGroup
-	for i, record := range records {
-		wg.Add(1)
-		go func(rowNum int, row []string) {
-			defer wg.Done()
-			processRow(rowNum, row, headers, string(templateContent), *templateFile, *outputDir)
-		}(i+1, record)
-	}
-	wg.Wait()
-
-	fmt.Println("Processing complete.")
 }
 
 func readCSV(filename string) ([][]string, []string) {
@@ -76,34 +64,67 @@ func readCSV(filename string) ([][]string, []string) {
 	return records[1:], records[0]
 }
 
-func processRow(rowNum int, row []string, headers []string, templateContent, templateFile, outputDir string) {
-	// Create a map of the row data
+func readTemplateFile(filename string) string {
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Fatalf("Error reading template file: %v", err)
+	}
+	return string(content)
+}
+
+func createOutputDir(outputDir string) {
+	err := os.MkdirAll(outputDir, os.ModePerm)
+	if err != nil {
+		log.Fatalf("Error creating output directory: %v", err)
+	}
+}
+
+func processRows(records [][]string, headers []string, templateContent string, config Config) {
+	var wg sync.WaitGroup
+	for i, record := range records {
+		wg.Add(1)
+		go func(rowNum int, row []string) {
+			defer wg.Done()
+			processRow(rowNum, row, headers, templateContent, config)
+		}(i+1, record)
+	}
+	wg.Wait()
+}
+
+func processRow(rowNum int, row []string, headers []string, templateContent string, config Config) {
+	data := makeRowData(row, headers)
+	processedContent := applyTemplate(templateContent, data)
+	writeOutputFile(rowNum, processedContent, config.TemplateFile, config.OutputDir)
+}
+
+func makeRowData(row []string, headers []string) RowData {
 	data := make(RowData)
 	for i, value := range row {
 		data[headers[i]] = value
 	}
+	return data
+}
 
-	// Parse the template
+func applyTemplate(templateContent string, data RowData) string {
 	tmpl, err := template.New("row").Parse(templateContent)
 	if err != nil {
-		log.Printf("Error parsing template for row %d: %v", rowNum, err)
-		return
+		log.Fatalf("Error parsing template: %v", err)
 	}
 
-	// Apply the template
 	var processed strings.Builder
 	err = tmpl.Execute(&processed, data)
 	if err != nil {
-		log.Printf("Error applying template for row %d: %v", rowNum, err)
-		return
+		log.Fatalf("Error applying template: %v", err)
 	}
 
-	// Determine output file name
+	return processed.String()
+}
+
+func writeOutputFile(rowNum int, content, templateFile, outputDir string) {
 	ext := filepath.Ext(templateFile)
 	outputFile := filepath.Join(outputDir, fmt.Sprintf("%d%s", rowNum, ext))
 
-	// Write the processed content to the output file
-	err = ioutil.WriteFile(outputFile, []byte(processed.String()), 0644)
+	err := ioutil.WriteFile(outputFile, []byte(content), 0644)
 	if err != nil {
 		log.Printf("Error writing output file for row %d: %v", rowNum, err)
 		return
